@@ -1,7 +1,7 @@
 # Contribution 1: heap tracker: color or mark pointers?
 
 **Contribution Number:** 1  
-**Student:** Hirat Rahman Rahi
+**Student:** Hirat Rahman Rahi   
 **Issue:** https://github.com/pwndbg/pwndbg/issues/3090  
 **Status:** Phase I Complete
 
@@ -9,7 +9,7 @@
 
 ## Why I Chose This Issue
 
-[As someone passionate about cybersecurity, I felt it's more meaningful to contribute on a tool that is used by real exploit developers. Also it would be a great chance for to deepen my understanding of low-level memory architecture.]
+As someone passionate about cybersecurity, I felt it's more meaningful to contribute on a tool that is used by real exploit developers. Also it would be a great chance for to deepen my understanding of low-level memory architecture.
 
 ---
 
