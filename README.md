@@ -1,15 +1,15 @@
-# Contribution [#]: [Issue Title]
+# Contribution [1]: [heap tracker: color or mark pointers?]
 
-**Contribution Number:** [1 / 2 / 3]  
-**Student:** [Your Name]  
-**Issue:** [GitHub issue link]  
-**Status:** [Phase I / Phase II / Phase III / Phase IV] [In Progress / Complete]
+**Contribution Number:** [1]  
+**Student:** [Hirat Rahman Rahi]  
+**Issue:** [https://github.com/pwndbg/pwndbg/issues/3090]  
+**Status:** [Phase I Complete]
 
 ---
 
 ## Why I Chose This Issue
 
-[1-2 paragraphs explaining why this issue interests you, how it matches your skills/learning goals, what you hope to learn]
+[As someone passionate about cybersecurity, I felt it's more meaningful to contribute on a tool that is used by real exploit developers. Also it would be a great chance for to deepen my understanding of low-level memory architecture.]
 
 ---
 
