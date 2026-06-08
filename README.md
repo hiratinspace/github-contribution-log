@@ -1,9 +1,9 @@
-# Contribution [1]: [heap tracker: color or mark pointers?]
+# Contribution 1: heap tracker: color or mark pointers?
 
-**Contribution Number:** [1]  
-**Student:** [Hirat Rahman Rahi]  
-**Issue:** [https://github.com/pwndbg/pwndbg/issues/3090]  
-**Status:** [Phase I Complete]
+**Contribution Number:** 1  
+**Student:** Hirat Rahman Rahi
+**Issue:** https://github.com/pwndbg/pwndbg/issues/3090  
+**Status:** Phase I Complete
 
 ---
 
