@@ -3,7 +3,7 @@
 **Contribution Number:** 1  
 **Student:** Hirat Rahman Rahi   
 **Issue:** https://github.com/pwndbg/pwndbg/issues/3090  
-**Status:** Phase I Complete, Phase II Complete
+**Status:** Phase I Complete, Phase II Complete, Phase III Complete
 
 ---
 
@@ -17,19 +17,24 @@ As someone passionate about cybersecurity, I felt it's more meaningful to contri
 
 ### Problem Description
 
-[In your own words, what's broken or missing?]
+The heap tracker ('track-heap enable') prints a line for every 'malloc', 'free', and 'realloc' a program makes. The pointers in that report were plain text, so when a program does many allocations it's hard to visually maatch an allocation with the 'free' that releases it. Issue #3090 asks for each pointer to be colored uniquely and consistently. Coloring was already added for 'malloc'/'free' (PR #3176), but the 'realloc' path was left incomplete and buggy.
 
 ### Expected Behavior
 
-[What should happen?]
+The same pointer address should always render in the same color across its whole lifetime ('malloc' -> 'realloc' -> 'free'), so an allocation can be paired with its free by eye. 'realloc''s returned pointer should be colored just like 'malloc''s, and 'realloc(ptr, 0)' should print a warning rather than crashing.
 
 ### Current Behavior
 
-[What actually happens?]
+A successful `realloc` printed its returned pointer **uncolored** (`{ret_ptr:#x}`), so it couldn't be color-matched to a later `free` — defeating the feature for realloc'd chunks.
+`realloc(ptr, 0)` raised `AttributeError` (the printer referenced a non-existent `self.freed_pointer`).
+The same `realloc(ptr, 0)` branch also leaked tracker state (missing `exit_memory_management()`), leaving the tracker flagged "in progress" and breaking the next allocation.
+
 
 ### Affected Components
 
-[Which parts of the codebase are involved?]
+`pwndbg/gdblib/ptmalloc2_tracking.py` — the heap-tracker logic (GDB-only; it hooks libc `malloc`/`calloc`/`realloc`/`free` with breakpoints). Specifically the `ReallocEnterBreakpoint` and `ReallocExitBreakpoint` classes.
+`pwndbg/commands/ptmalloc2_tracking.py` — the user-facing `track-heap` command wrapper (unchanged, but where the feature is invoked).
+
 
 ---
 
@@ -41,13 +46,16 @@ As someone passionate about cybersecurity, I felt it's more meaningful to contri
 
 ### Steps to Reproduce
 
+1. Compile a small C program that does `malloc`, `malloc`, `realloc(ptr, n)` (forced to move), and `realloc(ptr, 0)`.
+2. Launch it under pwndbg: break before the allocations, run `track-heap enable`, then `continue`.
+3. Observe the `[*]`/`[-]` tracker report lines.
 
 
 ### Reproduction Evidence
 
 - **Commit showing reproduction:** (https://github.com/hiratinspace/pwndbg)
 - **Screenshots/logs:** [If applicable]
-- **My findings:** [What you discovered during reproduction]
+- **My findings:** confirmed both bugs live — the `realloc` return pointer printed with no color, and `realloc(ptr, 0)` aborted with `Python Exception <AttributeError>: 'ReallocEnterBreakpoint' object has no attribute 'freed_pointer'`. I also found the state-leak bug while confirming that subsequent allocations behaved correctly.
 
 ---
 
@@ -55,11 +63,11 @@ As someone passionate about cybersecurity, I felt it's more meaningful to contri
 
 ### Analysis
 
-[Your analysis of the root cause - what's causing the issue?]
+The root cause is that the `realloc` printers diverged from the established `malloc`/`free` pattern. `malloc` colorizes via `colorize_ptr(ret_ptr)`, but `realloc`'s success printer used the raw `{ret_ptr:#x}`. The `realloc(ptr, 0)` branch referenced an attribute (`self.freed_pointer`) that is never assigned — the value lives in the local `freed_pointer` — and it returned without the `exit_memory_management()` call that balances its earlier `enter_memory_management()`.
 
 ### Proposed Solution
 
-[High-level description of your fix approach]
+Route the `realloc` return through the existing `colorize_ptr()` helper (consistent with `malloc`/`free`); use the correct local variable in the `realloc(ptr, 0)` warning; and add the missing `exit_memory_management()` so the tracker isn't left in a broken state.
 
 ### Implementation Plan
 
@@ -86,11 +94,11 @@ Submit PR referencing #3090 and #3176, framed as completing realloc coloring and
 
 
 
-**Implement:** [Link to your branch/commits as you work]
+**Implement:** https://github.com/hiratinspace/pwndbg/tree/fix/heap-tracker-colorize-realloc (commit `2f9769d4`). During implementation I found a third bug beyond the two planned: the `realloc(ptr, 0)` branch also leaked tracker state, so I added the missing `exit_memory_management()`.
 
-**Review:** [Self-review checklist - does it follow the project's contribution guidelines?]
+**Review:** change lives in the correct layer (GDB-only logic stays in `gdblib/`); reuses the existing `colorize_ptr()` helper rather than inventing a new mechanism;
 
-**Evaluate:** [How will you verify it works?]
+**Evaluate:** Verified the tests fail on the unfixed code and pass on the fixed code
 
 ---
 
@@ -115,9 +123,25 @@ Submit PR referencing #3090 and #3176, framed as completing realloc coloring and
 
 ## Implementation Notes
 
-### Week [X] Progress
+### Week [III] Progress
 
-[What you built this week, challenges faced, decisions made]
+Completed the heap-tracker pointer-coloring feature (`track-heap enable`)
+requested in issue #3090. The coloring mechanism (`Tracker.colorize_ptr()`,
+which caches one color per pointer so the same address always renders the same
+color) already existed for `malloc`/`free`, but the `realloc` path was
+incomplete and buggy. I:
+
+1. **Colorized realloc's returned pointer** — it was printed as a plain
+   `{ret_ptr:#x}` while malloc/free were colored, so a `realloc` result could
+   not be visually matched with its later `free`. Routed it through the same
+   `colorize_ptr()` helper.
+2. **Fixed an `AttributeError` crash** on `realloc(ptr, 0)` — the code
+   referenced `self.freed_pointer`, an attribute that is never set (the value
+   lives in the local variable `freed_pointer`).
+3. **Fixed a tracker state leak** in the same branch — it called
+   `enter_memory_management()` without the matching `exit_memory_management()`,
+   leaving the tracker permanently flagged as "in progress" and breaking the
+   next allocation.
 
 ### Week [Y] Progress
 
@@ -125,8 +149,16 @@ Submit PR referencing #3090 and #3176, framed as completing realloc coloring and
 
 ### Code Changes
 
-- **Files modified:** [List]
-- **Key commits:** [Links to important commits]
+- **Files modified:**
+- `pwndbg/gdblib/ptmalloc2_tracking.py` — the three fixes above (the heap
+  tracker is GDB-only; this is its logic module).
+- `tests/binaries/host/heap_tracker.native.c` — new C test fixture exercising
+  malloc/realloc/free and `realloc(ptr, 0)`.
+- `tests/library/gdb/tests/heap/test_track_heap.py` — two new regression tests.
+- **Key commits:** `2f9769d4` — `fix(heap): colorize realloc pointer and fix realloc(ptr, 0) in
+  heap tracker` (single squashed commit; an earlier `542c00c7` was amended to
+  fold in a CI lint fix).
+
 - **Approach decisions:** [Why you chose certain approaches]
 
 ---
