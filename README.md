@@ -106,18 +106,18 @@ Submit PR referencing #3090 and #3176, framed as completing realloc coloring and
 
 ### Unit Tests
 
-- [ ] Test case 1: [Description]
-- [ ] Test case 2: [Description]
-- [ ] Test case 3: [Description]
+- [ ] The heap tracker requires a live GDB inferior (it hooks libc functions with breakpoints), so a pure no-inferior unit test of `colorize_ptr()` was not practical; coverage is provided via the integration tests below, which assert the observable colored output rather than internal state.
 
 ### Integration Tests
 
-- [ ] Integration scenario 1
-- [ ] Integration scenario 2
+- [x] `test_track_heap_colorizes_realloc_pointer` — enables the tracker, runs a program whose `realloc` is forced to move, and asserts the returned pointer is colorized **and** shares the exact same ANSI color as its later `free()`.
 
 ### Manual Testing
 
-[What you tested manually and results]
+Ran the tracker live on the fixture and captured colored before/after output:
+- **Before (unfixed):** output stopped after the `realloc(ptr, 0)` crash; the realloc return was printed uncolored.
+- **After (fixed):** the realloc return is colored and matches the color of its later `free`; `realloc(ptr, 0)` prints a clean warning; the program runs to completion.
+- Verified the tests genuinely guard the bug by confirming they FAIL on the unfixed code and PASS on the fixed code (`git stash` the fix, re-run, restore).
 
 ---
 
@@ -165,15 +165,15 @@ incomplete and buggy. I:
 
 ## Pull Request
 
-**PR Link:** [GitHub PR URL when submitted]
+**PR Link:**  https://github.com/pwndbg/pwndbg/pull/3984
 
-**PR Description:** [Draft or final PR description - much of the content above can be adapted]
+**PR Description:** Completes the heap-tracker pointer coloring (#3090): the `realloc()` return pointer is now colorized via `colorize_ptr()` like malloc/free, so an allocation can be visually matched with its free. Also fixes two bugs on the `realloc(ptr, 0)` path that the original coloring change left behind — an `AttributeError` from a non-existent `self.freed_pointer`, and a missing `exit_memory_management()` that left the tracker flagged in-progress and broke the next allocation. Adds GDB tests covering the colorized realloc output and the `realloc(ptr, 0)` path. `Closes #3090`.
 
 **Maintainer Feedback:**
-- [Date]: [Summary of feedback received]
-- [Date]: [How you addressed it]
+- 2026-06-26: Automated Copilot AI review left inline comments on the PR.
+- 2026-06-26: All CI checks passing after addressing a `mypy --strict` typing requirement (annotated the new test functions).
 
-**Status:** [Awaiting review / Iterating / Approved / Merged]
+**Status:** Awaiting review (all CI checks passing)
 
 ---
 
@@ -181,20 +181,21 @@ incomplete and buggy. I:
 
 ### Technical Skills Gained
 
-[What you learned technically]
+- How GDB plugins hook libc functions with enter/finish breakpoints and watchpoints, and how pwndbg layers a debugger-agnostic library over a thin debugger abstraction.
 
 ### Challenges Overcome
 
-[What was hard and how you solved it]
+- **The feature already partly existed** — the real task was finding the gaps (all in `realloc`), not building from scratch. A pickaxe search revealed PR #3176 had added the coloring.
 
 ### What I'd Do Differently Next Time
 
-[Reflection on your process]
+- Run `mypy --strict` on new files *before* opening the PR, not just `./lint.sh`, to catch the CI typing gate locally.
 
 ---
 
 ## Resources Used
 
-- [Link to helpful documentation]
-- [Tutorial or Stack Overflow post that helped]
-- [GitHub issues or discussions that helped]
+- pwndbg Contributing Guide — https://pwndbg.re/dev/contributing/
+- Issue #3090 (this contribution) and prior PR #3176 (which added the original malloc/free coloring)
+- pwndbg developer docs (`docs/contributing/`: writing-tests, common-pitfalls, adding-a-command) and the repo's `CLAUDE.md`
+
